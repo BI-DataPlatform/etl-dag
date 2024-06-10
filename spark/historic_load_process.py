@@ -32,7 +32,7 @@ def run(argv):
         parser.print_help()
         sys.exit(2)
 
-    appname = "prepare_pipeline"
+    appname = "historic_load_process"
 
     spark = SparkSession.builder.appName(appname) \
         .getOrCreate()

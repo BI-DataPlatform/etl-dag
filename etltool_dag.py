@@ -17,10 +17,7 @@ from airflow.providers.apache.livy.operators.livy import LivyOperator
      catchup=False
      )
 def etl_dag():
-
     LIVY_FILES_DIR = "/root/.livy-sessions/dags"
-
-
 
     @task
     def copy_files(**context):
@@ -34,19 +31,17 @@ def etl_dag():
         )
         copy_files_task.execute(context)
 
-
-
     @task()
-    def update_accounts_dim(**context):
+    def accounts_historic_load(**context):
         """
         temp Iceberg 로그 테이블에서 로그를 추출해 partitioning, indexing, audit 등을 추가
         실패 후 재실행 시 해당 날짜 partition overwrite 진행
         """
-        update_dim_task = LivyOperator(
-            task_id="prepare_accounts_pipeline",
-            name="prepare_accounts_pipeline",
+        accounts_historic_load_task = LivyOperator(
+            task_id="accounts_historic_load_process",
+            name="accounts_historic_load_process",
             livy_conn_id="livy_default",
-            file=f"{LIVY_FILES_DIR}/spark/prepare_pipeline.py",
+            file=f"{LIVY_FILES_DIR}/spark/historic_load_process.py",
             py_files=None,
             args=[
                 "--src-table=deliveries.accounts_log",
@@ -67,15 +62,50 @@ def etl_dag():
             polling_interval=5
         )
         try:
-            batch_id = update_dim_task.execute(context)
+            batch_id = accounts_historic_load_task.execute(context)
         except Exception as e:
             # TODO: error handling
             print(e)
         finally:
-            update_dim_task.kill()
+            accounts_historic_load_task.kill()
+
+    @task()
+    def accounts_dimension_incremental_process(**context):
+        """
+        temp Iceberg 로그 테이블에서 로그를 추출해 partitioning, indexing, audit 등을 추가
+        실패 후 재실행 시 해당 날짜 partition overwrite 진행
+        """
+        accounts_dimension_incremental_process_task = LivyOperator(
+            task_id="accounts_dimension_incremental_process",
+            name="accounts_dimension_incremental_process",
+            livy_conn_id="livy_default",
+            file=f"{LIVY_FILES_DIR}/spark/dimension_incremental_process.py",
+            py_files=None,
+            args=[
+                "--src-table=deliveries.accounts_stage",
+                "--dst-table=deliveries.accounts_dimension"
+                f"--partition={context['ds_nodash']}",
+                "--partition-col=ds",
+                "--index-col=row_id"
+            ],
+            conf={},
+            driver_memory="512m",
+            driver_cores=1,
+            executor_memory="512m",
+            executor_cores=1,
+            num_executors=1,
+            polling_interval=5
+        )
+        try:
+            batch_id = accounts_dimension_incremental_process_task.execute(context)
+        except Exception as e:
+            # TODO: error handling
+            print(e)
+        finally:
+            accounts_dimension_incremental_process_task.kill()
 
 
+    copy_files() >> accounts_historic_load() >> accounts_dimension_incremental_process()
 
-    copy_files() >> update_accounts_dim()
 
 etl_dag()
