@@ -4,7 +4,6 @@ import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, asc, monotonically_increasing_id
 
-
 def run(argv):
     """
     :args:
@@ -12,6 +11,7 @@ def run(argv):
     --dst-table     가공 후 타깃 테이블명
     --partition-col partition 컬럼명
     --partition     작업 partition
+    --row-kind-col  로그 유형 컬럼명
     --index-col     인덱스 컬럼명
     --start         시작 인덱스
     --end           종료 인덱스
@@ -21,6 +21,7 @@ def run(argv):
     parser.add_argument('--dst-table', dest='dst_table', type=str, required=True)
     parser.add_argument('--partition-col', dest='partition_col', type=str)
     parser.add_argument('--partition', dest='partition', type=str)
+    parser.add_argument('--row-kind-col', dest='rowkind_col', type=str, required=True)
     parser.add_argument('--index-col', dest='index_col', type=str)
     parser.add_argument('--start', dest='start_index', type=int)
     parser.add_argument('--end', dest='end_index', type=int)
@@ -48,5 +49,18 @@ def run(argv):
     df = df.orderBy(asc(args.index_col))
 
     df.show()
+
+    # TODO: append audit dim
+
+
+    # append dim
+    for row in df.collect():
+        # TODO: quality filter
+        row_kind = row[args.row_kind_col]
+        df = df.drop(args.index_col, args.row_kind_col)
+        if row_kind == 'INSERT':
+            df.writeTo(args.dst_table).append()
+        elif row_kind == 'UPDATE':
+
 
 run(sys.argv)
