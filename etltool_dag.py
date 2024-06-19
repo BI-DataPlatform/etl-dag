@@ -22,7 +22,8 @@ def etl_dag():
     @task
     def copy_files(**context):
         copy_files_bash_script = f"""
-        kubectl exec spark-livy-0 -- mkdir -p {LIVY_FILES_DIR}
+        kubectl exec spark-livy-0 -- mkdir -p {LIVY_FILES_DIR}/pyspark
+        kubectl exec spark-livy-0 -- mkdir -p {LIVY_FILES_DIR}/spark
         kubectl cp /home/malachai/airflow/dags/spark/spark-python spark-livy-0:{LIVY_FILES_DIR}/pyspark
         kubectl cp /home/malachai/airflow/dags/spark/spark-scala/target/scala-2.12/etltool-assembly-0.1.jar spark-livy-0:{LIVY_FILES_DIR}/spark/etltool-assembly-0.1.jar
         """
@@ -53,7 +54,7 @@ def etl_dag():
                 "--partition-col", "ds",
                 "--timestamp-col", "inserted_at",
                 "--from", f"{int(round(datetime(2024, 6, 3, 0, tzinfo=pytz.timezone('Asia/Seoul')).timestamp()))}",
-                "--to", f"{int(round(datetime(2024, 6, 4, 0, tzinfo=pytz.timezone('Asia/Seoul')).timestamp()))}",
+                "--to", f"{int(round(datetime(2024, 6, 20, 0, tzinfo=pytz.timezone('Asia/Seoul')).timestamp()))}",
                 "--surrogate-col", "row_id"
             ],
             conf={},
@@ -69,6 +70,7 @@ def etl_dag():
         except Exception as e:
             # TODO: error handling
             print(e)
+            raise e
         finally:
             accounts_historic_load_task.kill()
 
@@ -86,15 +88,14 @@ def etl_dag():
             file=f"{LIVY_FILES_DIR}/spark/etltool-assembly-0.1.jar",
             py_files=None,
             args=[
-                "dimension-incremental"
+                "dimension-incremental",
                 "--src-table", "deliveries.accounts_stage",
-                "--dst-table", "deliveries.accounts_dimension"
+                "--dst-table", "deliveries.accounts_dim",
                 "--partition", f"{context['ds_nodash']}",
                 "--partition-col", "ds",
                 "--row-kind-col", "rowkind",
-                "--start", "",
-                "--end", ""
                 "--index-col", "row_id",
+                "--start", "0"
             ],
             conf={},
             driver_memory="512m",
@@ -109,6 +110,7 @@ def etl_dag():
         except Exception as e:
             # TODO: error handling
             print(e)
+            raise e
         finally:
             accounts_dimension_incremental_process_task.kill()
 

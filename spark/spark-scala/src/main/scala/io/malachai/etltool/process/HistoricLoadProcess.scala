@@ -27,7 +27,7 @@ object HistoricLoadProcess {
     }
 
     // overwrite partition
-    df.writeTo(map("dst_table")).overwritePartitions().→()
+    df.writeTo(map("dst_table")).overwritePartitions()
 
   }
 

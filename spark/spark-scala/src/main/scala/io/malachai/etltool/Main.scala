@@ -1,6 +1,6 @@
 package io.malachai.etltool
 
-import io.malachai.etltool.process.HistoricLoadProcess
+import io.malachai.etltool.process.{DimensionIncrementalProcess, HistoricLoadProcess}
 
 import scala.annotation.tailrec
 import scala.sys.exit
@@ -94,7 +94,7 @@ object Main {
           case "--dst-table" :: value :: tail =>
             argParse(kwargs ++ Map("dst_table" -> value), args, tail)
           case "--row-kind-col" :: value :: tail =>
-            argParse(kwargs ++ Map("rowkind_col" -> value), args, tail)
+            argParse(kwargs ++ Map("row_kind_col" -> value), args, tail)
           case "--index-col" :: value :: tail =>
             argParse(kwargs ++ Map("index_col" -> value), args, tail)
           case "--start" :: value :: tail =>
@@ -109,9 +109,15 @@ object Main {
             exit(1)
         }
       }
+      def argDefault(map: Map[String, Any]): Map[String, Any] = {
+        map
+      }
 
-      val opt = argParse(Map(), List(), args.toList.tail)
+      val opt = argParse(argDefault(Map()), List(), args.toList.tail)
       println(opt)
+
+      DimensionIncrementalProcess.run(opt._1)
+
     } else {
       println("unknown command: " + args(0))
       exit(1)
