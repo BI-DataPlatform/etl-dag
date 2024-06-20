@@ -95,7 +95,8 @@ def etl_dag():
                 "--partition-col", "ds",
                 "--row-kind-col", "rowkind",
                 "--index-col", "row_id",
-                "--start", "0"
+                "--start", "0",
+                "accounts"
             ],
             conf={},
             driver_memory="512m",

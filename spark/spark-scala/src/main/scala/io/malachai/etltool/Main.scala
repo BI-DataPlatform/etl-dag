@@ -116,7 +116,7 @@ object Main {
       val opt = argParse(argDefault(Map()), List(), args.toList.tail)
       println(opt)
 
-      DimensionIncrementalProcess.run(opt._1)
+      DimensionIncrementalProcess.run(opt._1, opt._2)
 
     } else {
       println("unknown command: " + args(0))
